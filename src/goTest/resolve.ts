@@ -30,7 +30,7 @@ export type ProvideSymbols = (doc: TextDocument, token?: CancellationToken) => T
 
 const testFuncRegex = /^(?<name>(?<kind>Test|Benchmark|Example|Fuzz)($|\P{Ll}.*))/u;
 const testMethodRegex = /^\(\*(?<type>[^)]+)\)\.(?<name>(?<kind>Test)($|\P{Ll}.*))$/u;
-const runTestSuiteRegex = /^\s*suite\.Run\(\w+,\s*(?:&?(?<type1>\w+)\{\}|new\((?<type2>\w+)\))\)/mu;
+const runTestSuiteRegex = /^\s*suite\.Run\(\w+,\s*(?:&?(?<type1>\w+)\{\}|new\((?<type2>\w+)\)|(?<varName>\w+))\)/mu;
 
 interface TestSuite {
 	func?: TestItem;
@@ -42,6 +42,7 @@ export class GoTestResolver {
 	public readonly isDynamicSubtest = new WeakSet<TestItem>();
 	public readonly isTestMethod = new WeakSet<TestItem>();
 	public readonly isTestSuiteFunc = new WeakSet<TestItem>();
+	public readonly shouldIndexAll = getGoConfig().get('testExplorer.indexEntireWorkspace');
 	private readonly testSuites = new Map<string, TestSuite>();
 
 	constructor(
@@ -82,6 +83,7 @@ export class GoTestResolver {
 				}
 			});
 
+			if (!this.shouldIndexAll) return;
 			// Create entries for all modules and workspaces
 			for (const folder of this.workspace.workspaceFolders || []) {
 				const found = await walkWorkspaces(this.workspace.fs, folder.uri);
@@ -107,7 +109,8 @@ export class GoTestResolver {
 
 		if (!item.uri) return;
 		// The user expanded a module or workspace - find all packages
-		if (kind === 'module' || kind === 'workspace') {
+		// Always skipped if not indexing the entire workspace
+		if ((kind === 'module' || kind === 'workspace') && this.shouldIndexAll) {
 			await walkPackages(this.workspace.fs, item.uri, async (uri) => {
 				await this.getPackage(uri);
 			});
@@ -217,8 +220,9 @@ export class GoTestResolver {
 				return;
 			}
 
-			if (ranges?.some((r) => !!child.range?.intersection(r))) {
-				item.children.forEach((x) => dispose(this, x));
+			// Dispose if the edits affect the function header
+			if (ranges?.some((r) => !!this.getFirstLineRange(child)?.intersection(r))) {
+				dispose(this, child);
 			}
 		});
 
@@ -473,10 +477,19 @@ export class GoTestResolver {
 		// - suite.Run(t, new(MySuite))
 		// - suite.Run(t, MySuite{})
 		// - suite.Run(t, &MySuite{})
+		// - suite.Run(t, myVarName), in which case the type will be determined by checking the line where myVarName is defined.
 		const matchRunSuite = text.match(runTestSuiteRegex);
 		if (matchRunSuite) {
 			const g = matchRunSuite.groups;
-			const suite = this.getTestSuite(g?.type1 || g?.type2 || '');
+
+			// When the variable is defined separately from the suite.Run call, get the type from the line where the variable is defined.
+			let variableDef;
+			if (g?.varName) {
+				const typeRegex = new RegExp(`${g.varName} ?:= new\\((?<type3>\\w+)\\)$`, 'mu');
+				variableDef = text.match(typeRegex);
+			}
+
+			const suite = this.getTestSuite(g?.type1 || g?.type2 || variableDef?.groups?.type3 || '');
 			suite.func = item;
 
 			for (const method of suite.methods) {
@@ -488,6 +501,20 @@ export class GoTestResolver {
 				item.children.add(method);
 			}
 		}
+	}
+
+	/**
+	 * Gets only the first line of an item's range.
+	 * @param item Item to get the first line
+	 * @returns Range containing only the first line of the given TestItem, or undefined if the item has no range.
+	 */
+	private getFirstLineRange(item: TestItem): Range | undefined {
+		if (!item.range) return undefined;
+		return new Range(
+			item.range.start,
+			// For multi-line ranges, include the whole first line. Placeholder of 200 characters to capture full line.
+			item.range.isSingleLine ? item.range.end : new vscode.Position(item.range.start.line, 200)
+		);
 	}
 }
 

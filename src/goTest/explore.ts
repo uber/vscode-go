@@ -17,6 +17,7 @@ import {
 	workspace,
 	WorkspaceFoldersChangeEvent
 } from 'vscode';
+import path = require('path');
 import vscode = require('vscode');
 import { GoDocumentSymbolProvider } from '../goDocumentSymbols';
 import { outputChannel } from '../goStatus';
@@ -210,15 +211,22 @@ export class GoTestExplorer {
 	public readonly profiler: GoTestProfiler;
 
 	constructor(
-		private readonly goCtx: GoExtensionContext,
+		protected readonly goCtx: GoExtensionContext,
 		private readonly workspace: Workspace,
 		private readonly ctrl: TestController,
 		workspaceState: Memento,
-		provideDocumentSymbols: ProvideSymbols
+		provideDocumentSymbols: ProvideSymbols,
+		TestRunner: new (
+			goCtx: GoExtensionContext,
+			workspace: Workspace,
+			ctrl: TestController,
+			resolver: GoTestResolver,
+			profiler: GoTestProfiler
+		) => GoTestRunner = GoTestRunner
 	) {
 		this.resolver = new GoTestResolver(workspace, ctrl, provideDocumentSymbols);
 		this.profiler = new GoTestProfiler(this.resolver, workspaceState);
-		this.runner = new GoTestRunner(goCtx, workspace, ctrl, this.resolver, this.profiler);
+		this.runner = new TestRunner(goCtx, workspace, ctrl, this.resolver, this.profiler);
 	}
 
 	/* ***** Listeners ***** */
@@ -258,12 +266,16 @@ export class GoTestExplorer {
 	}
 
 	protected async didCreateFile(file: Uri) {
-		// Do not use openTextDocument to get the TextDocument for file,
-		// since this sends a didOpen text document notification to gopls,
-		// leading to spurious diagnostics from gopls:
-		// https://github.com/golang/vscode-go/issues/2570
-		// Instead, get the test item for this file only.
-		await this.resolver.getFile(file);
+		// If not indexing the entire workspace, then handle newly created files only if the package is already present in the test explorer.
+		const pkg = GoTest.id(file.with({ path: path.dirname(file.path) }), 'package');
+		if (this.resolver.shouldIndexAll || this.resolver.all.get(pkg)) {
+			// Do not use openTextDocument to get the TextDocument for file,
+			// since this sends a didOpen text document notification to gopls,
+			// leading to spurious diagnostics from gopls:
+			// https://github.com/golang/vscode-go/issues/2570
+			// Instead, get the test item for this file only.
+			await this.resolver.getFile(file);
+		}
 	}
 
 	protected async didDeleteFile(file: Uri) {
@@ -304,10 +316,10 @@ export class GoTestExplorer {
 		}
 	}
 
-	/* ***** Private ***** */
+	/* ***** Protected ***** */
 
 	// Handle opened documents, document changes, and file creation.
-	private async documentUpdate(doc: TextDocument, ranges?: Range[]) {
+	protected async documentUpdate(doc: TextDocument, ranges?: Range[]) {
 		if (!doc.uri.path.endsWith('_test.go')) {
 			return;
 		}

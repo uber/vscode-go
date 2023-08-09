@@ -66,6 +66,7 @@ import { GoExplorerProvider } from './goExplorer';
 import { GoExtensionContext } from './context';
 import * as commands from './commands';
 import { toggleVulncheckCommandFactory, VulncheckOutputLinkProvider } from './goVulncheck';
+import { BazelGoTestExplorer, warnIfDuplicateGoExtension } from './bazel/bazelExplore';
 import { GoTaskProvider } from './goTaskProvider';
 
 const goCtx: GoExtensionContext = {};
@@ -75,6 +76,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 		// Make sure this does not run when running in test.
 		return;
 	}
+
+	warnIfDuplicateGoExtension();
 
 	setGlobalState(ctx.globalState);
 	setWorkspaceState(ctx.workspaceState);
@@ -121,7 +124,6 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 
 	registerCommand('go.environment.status', expandGoStatusBar);
 
-	GoRunTestCodeLensProvider.activate(ctx, goCtx);
 	GoDebugConfigurationProvider.activate(ctx, goCtx);
 	GoDebugFactory.activate(ctx);
 
@@ -166,7 +168,11 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('go.browse.packages', browsePackages);
 
 	if (isVscodeTestingAPIAvailable && cfg.get<boolean>('testExplorer.enable')) {
-		GoTestExplorer.setup(ctx, goCtx);
+		if (cfg.get<boolean>('testExplorer.useBazel')) BazelGoTestExplorer.setup(ctx, goCtx);
+		else {
+			GoTestExplorer.setup(ctx, goCtx);
+			GoRunTestCodeLensProvider.activate(ctx, goCtx);
+		}
 	}
 
 	GoExplorerProvider.setup(ctx);
@@ -215,6 +221,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	// Vulncheck output link provider.
 	VulncheckOutputLinkProvider.activate(ctx);
 	registerCommand('go.vulncheck.toggle', toggleVulncheckCommandFactory);
+	vscode.commands.executeCommand('go.initExtensionAPI', ctx, goCtx);
 
 	return extensionAPI;
 }
@@ -307,6 +314,15 @@ function addOnDidChangeConfigListeners(ctx: vscode.ExtensionContext) {
 					}
 				});
 			}
+			if (e.affectsConfiguration('go.testExplorer.useBazel')) {
+				const msg =
+					'Bazel has been enabled or disabled. For this change to take effect, the window must be reloaded.';
+				vscode.window.showInformationMessage(msg, 'Reload').then((selected) => {
+					if (selected === 'Reload') {
+						vscode.commands.executeCommand('workbench.action.reloadWindow');
+					}
+				});
+			}
 		})
 	);
 }
@@ -390,6 +406,48 @@ async function showDeprecationWarning() {
 					break;
 				case "Don't show again":
 					updateGlobalState(promptKey, true);
+			}
+		}
+	}
+	const codelensFeatures = cfg['enableCodeLens'];
+	if (codelensFeatures && codelensFeatures['references']) {
+		const promptKey = 'promptedCodeLensReferencesFeatureDeprecation';
+		const prompted = getFromGlobalState(promptKey, false);
+		if (!prompted) {
+			const msg =
+				"The 'go.enableCodeLens.references' setting will be removed soon. Please see [Issue 2509](https://go.dev/s/vscode-issue/2509).";
+			const selected = await vscode.window.showWarningMessage(msg, 'Update Settings', "Don't show again");
+			switch (selected) {
+				case 'Update Settings':
+					{
+						const { globalValue, workspaceValue, workspaceFolderValue } = cfg.inspect<{
+							[key: string]: boolean;
+						}>('enableCodeLens') || {
+							globalValue: undefined,
+							workspaceValue: undefined,
+							workspaceFolderValue: undefined
+						};
+						if (globalValue && globalValue['references']) {
+							delete globalValue.references;
+							cfg.update('enableCodeLens', globalValue, vscode.ConfigurationTarget.Global);
+						}
+						if (workspaceValue && workspaceValue['references']) {
+							delete workspaceValue.references;
+							cfg.update('enableCodeLens', workspaceValue, vscode.ConfigurationTarget.Workspace);
+						}
+						if (workspaceFolderValue && workspaceFolderValue['references']) {
+							delete workspaceFolderValue.references;
+							cfg.update(
+								'enableCodeLens',
+								workspaceFolderValue,
+								vscode.ConfigurationTarget.WorkspaceFolder
+							);
+						}
+					}
+					break;
+				case "Don't show again":
+					updateGlobalState(promptKey, true);
+					break;
 			}
 		}
 	}

@@ -3,6 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------*/
 import assert = require('assert');
+import vscode = require('vscode');
 import { TestItem, Uri } from 'vscode';
 import { GoTestResolver } from '../../src/goTest/resolve';
 import { GoTest, GoTestKind } from '../../src/goTest/utils';
@@ -28,6 +29,7 @@ suite('Go Test Resolver', () => {
 	interface TC extends TestCase {
 		item?: ([string, string, GoTestKind] | [string, string, GoTestKind, string])[];
 		expect: string[];
+		expectPartial?: string[];
 	}
 
 	const cases: Record<string, Record<string, TC>> = {
@@ -89,7 +91,8 @@ suite('Go Test Resolver', () => {
 					'/src/proj/main_test.go': 'package main'
 				},
 				item: [['test', '/src/proj', 'module']],
-				expect: ['file:///src/proj/main_test.go?file']
+				expect: ['file:///src/proj/main_test.go?file'],
+				expectPartial: ['file:///src/proj/main_test.go?file']
 			},
 			'Sub packages': {
 				workspace: ['/src/proj'],
@@ -114,7 +117,8 @@ suite('Go Test Resolver', () => {
 					'file:///src/proj/foo?package',
 					'file:///src/proj/foo/bar?package',
 					'file:///src/proj/main_test.go?file'
-				]
+				],
+				expectPartial: ['file:///src/proj/main_test.go?file']
 			}
 		},
 		Package: {
@@ -200,23 +204,41 @@ suite('Go Test Resolver', () => {
 	for (const n in cases) {
 		suite(n, () => {
 			for (const m in cases[n]) {
-				test(m, async () => {
-					const { workspace, files, expect, item: itemData = [] } = cases[n][m];
-					const { ctrl, resolver } = setup(workspace, files);
+				for (const indexEntireWorkspace of [true, false]) {
+					const name = indexEntireWorkspace ? m + ' (entire workspace)' : m + ' (limited to package)';
+					test(name, async () => {
+						const {
+							workspace,
+							files,
+							expect,
+							expectPartial: expectPartialData = [],
+							item: itemData = []
+						} = cases[n][m];
+						await vscode.workspace
+							.getConfiguration()
+							.update(
+								'go.testExplorer.indexEntireWorkspace',
+								indexEntireWorkspace,
+								vscode.ConfigurationTarget.Global
+							);
+						const { ctrl, resolver } = setup(workspace, files);
 
-					let item: TestItem | undefined;
-					for (const [label, uri, kind, name] of itemData) {
-						const u = Uri.parse(uri);
-						const child = ctrl.createTestItem(GoTest.id(u, kind, name), label, u);
-						(item?.children || resolver.items).add(child);
-						item = child;
-					}
-					await resolver.resolve(item);
+						let item: TestItem | undefined;
+						for (const [label, uri, kind, name] of itemData) {
+							const u = Uri.parse(uri);
+							const child = ctrl.createTestItem(GoTest.id(u, kind, name), label, u);
+							(item?.children || resolver.items).add(child);
+							item = child;
+						}
+						await resolver.resolve(item);
 
-					const actual: string[] = [];
-					(item?.children || resolver.items).forEach((x) => actual.push(x.id));
-					assert.deepStrictEqual(actual, expect);
-				});
+						const actual: string[] = [];
+						(item?.children || resolver.items).forEach((x) => actual.push(x.id));
+						if (!indexEntireWorkspace && (n === 'Module' || n === 'Root'))
+							assert.deepStrictEqual(actual, expectPartialData);
+						else assert.deepStrictEqual(actual, expect);
+					});
+				}
 			}
 		});
 	}

@@ -32,4 +32,5 @@ export interface GoExtensionContext {
 	buildDiagnosticCollection?: vscode.DiagnosticCollection;
 	lintDiagnosticCollection?: vscode.DiagnosticCollection;
 	vetDiagnosticCollection?: vscode.DiagnosticCollection;
+	coverageEnabled?: boolean;
 }

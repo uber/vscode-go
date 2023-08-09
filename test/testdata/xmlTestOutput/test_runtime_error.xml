@@ -1,0 +1,26 @@
+<testsuites>
+	<testsuite errors="1" failures="0" skipped="0" tests="20" time="" name="code/sample/fakepackage">
+		<testcase classname="buildevent" name="ErrorTestCase" time="">
+			<error message="No pass/skip/fail event found for test" type="">Message line 1&#xA;Message line 2</error>
+		</testcase>
+		<testcase classname="buildevent" name="TestCase1" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest1" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest2" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest3" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest4" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest5" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest6" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase1/subtest7" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase2" time="0.010"></testcase>
+		<testcase classname="buildevent" name="TestCase3" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase3/subtest1" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase3/subtest2" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase4" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase4/subtest1" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase4/subtest2" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase4/subtest3" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase4/subtest4" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase5" time="0.000"></testcase>
+		<testcase classname="buildevent" name="TestCase6" time="0.000"></testcase>
+	</testsuite>
+</testsuites>
