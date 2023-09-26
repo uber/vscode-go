@@ -225,6 +225,8 @@ export class MockTestWorkspace implements Workspace {
 				doc = new MockTestDocument(uri, unindent(entry.contents), entry.language);
 			} else if (path.basename(uri.path) === 'go.mod') {
 				doc = new MockTestDocument(uri, unindent(entry), 'go.mod');
+			} else if (entry.includes('github.com/stretchr/testify/suite')) {
+				doc = new MockTestDocumentWithSuite(uri, unindent(entry));
 			} else {
 				doc = new MockTestDocument(uri, unindent(entry));
 			}
@@ -254,7 +256,7 @@ export class MockTestWorkspace implements Workspace {
 class MockTestDocument implements TextDocument {
 	constructor(
 		public uri: Uri,
-		private _contents: string,
+		protected _contents: string,
 		public languageId: string = 'go',
 		public isUntitled: boolean = false,
 		public isDirty: boolean = false
@@ -319,5 +321,21 @@ class MockTestDocument implements TextDocument {
 
 	validatePosition(position: Position): Position {
 		throw new Error('Method not implemented.');
+	}
+}
+
+class MockTestDocumentWithSuite extends MockTestDocument {
+	constructor(
+		public uri: Uri,
+		private text: string,
+		public languageId: string = 'go',
+		public isUntitled: boolean = false,
+		public isDirty: boolean = false
+	) {
+		super(uri, text, languageId, isUntitled, isDirty);
+	}
+
+	getText(range?: Range): string {
+		return this._contents;
 	}
 }

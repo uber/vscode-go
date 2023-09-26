@@ -213,6 +213,7 @@ export class GoTestResolver {
 			await this.processSymbol(doc, item, seen, testify, symbol);
 		}
 
+		if (testify) this.cleanupTestSuites(item, seen);
 		item.children.forEach((child) => {
 			const { name } = GoTest.parseId(child.id);
 			if (!name || !seen.has(name)) {
@@ -491,7 +492,6 @@ export class GoTestResolver {
 
 			const suite = this.getTestSuite(g?.type1 || g?.type2 || variableDef?.groups?.type3 || '');
 			suite.func = item;
-
 			for (const method of suite.methods) {
 				if (!method.parent || GoTest.parseId(method.parent.id).kind !== 'file') {
 					continue;
@@ -515,6 +515,24 @@ export class GoTestResolver {
 			// For multi-line ranges, include the whole first line. Placeholder of 200 characters to capture full line.
 			item.range.isSingleLine ? item.range.end : new vscode.Position(item.range.start.line, 200)
 		);
+	}
+
+	/**
+	 * Clean up a suite by removing test cases that are no longer seen in a given file.
+	 * @param file TestItem representing the file to be checked, since suites can be spread across multiple files.
+	 * @param seen Set of test cases that were seen in the given file during the current update.
+	 */
+	private cleanupTestSuites(file: TestItem, seen: Set<string>) {
+		for (const currentSuite of this.testSuites.values()) {
+			currentSuite.func?.children.forEach((suiteMethod) => {
+				const { name } = GoTest.parseId(suiteMethod.id);
+				// Only dispose of the test case if it is in the same file.
+				// We want to avoid disposing of test cases that were not seen because they are in a different file.
+				if (name && suiteMethod.uri?.fsPath === file.uri?.fsPath && !seen.has(name)) {
+					dispose(this, suiteMethod);
+				}
+			});
+		}
 	}
 }
 
