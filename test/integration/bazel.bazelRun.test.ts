@@ -13,7 +13,8 @@ import {
 	TestController,
 	TestRun,
 	OutputChannel,
-	TestItem
+	TestItem,
+	TestItemCollection
 } from 'vscode';
 import * as bazelTestUtils from '../../src/bazel/bazelTestUtils';
 import * as testUtils from '../../src/testUtils';
@@ -25,6 +26,8 @@ import { GoTestResolver } from '../../src/goTest/resolve';
 import { GoTestRunner, TestRunOutput } from '../../src/goTest/run';
 import { MockTestController } from '../mocks/MockTest';
 import { BazelGoTestRunner } from '../../src/bazel/bazelRun';
+import * as config from '../../src/config';
+import * as goModules from '../../src/goModules';
 
 // TODO:
 // - Tests for bazelDebugTestAtCursor()
@@ -163,6 +166,114 @@ suite('Bazel Go Test Runner', () => {
 					true
 				)
 			);
+		});
+
+		suite('Resolve all child packages of a package', async () => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			let goConfig: any;
+
+			setup(() => {
+				goConfig = Object.create(config.getGoConfig());
+				sandbox.stub(config, 'getGoConfig').returns(goConfig);
+			});
+
+			const childrenToArray = (children: TestItemCollection) => {
+				const arr: TestItem[] = [];
+				children.forEach((child) => arr.push(child));
+				return arr;
+			};
+			const getPackageDisplayStub = sinon.stub(goConfig, 'get');
+			const getModFolderPathStub = sinon.stub(goModules, 'getModFolderPath');
+
+			test('Resolve subtests of a given directory with nested display', async () => {
+				setup(() => {
+					getPackageDisplayStub.withArgs('testExplorer.packageDisplayMode').returns('nested');
+					getModFolderPathStub.returns(Promise.resolve(undefined));
+				});
+				teardown(() => {
+					getModFolderPathStub.reset();
+					getPackageDisplayStub.reset();
+				});
+				const ctrl = new MockTestController();
+				const item = ctrl.createTestItem(
+					'',
+					'',
+					Uri.file(path.join(__dirname, '../../../test/testdata/getAllPackagesTest/A'))
+				);
+
+				await testExplorer.resolver.getAllTestsUnderDirectory(item);
+
+				const items = testExplorer.resolver.find(item.uri!);
+				// ensure the directory structure is correct
+				// should create two items (A and A/AA) in this nested case
+				assert.ok(items.length === 1);
+				const rootPackageItem = items[0];
+				assert.ok(rootPackageItem.id.includes('A') === true);
+				assert.ok(rootPackageItem.id.includes('A/AA') === false);
+				assert.ok(rootPackageItem.children.size === 1);
+				const innerPackageItem = childrenToArray(rootPackageItem.children)[0];
+				assert.ok(innerPackageItem.id.includes('AA') === true);
+				assert.ok(innerPackageItem.children.size === 0);
+			});
+
+			test('Resolve subtests of a given directory with nested display using modFolderPath', async () => {
+				setup(() => {
+					getPackageDisplayStub.withArgs('testExplorer.packageDisplayMode').returns('nested');
+					getModFolderPathStub.returns(Promise.resolve(path.join(__dirname, '../../..')));
+				});
+				teardown(() => {
+					getModFolderPathStub.reset();
+					getPackageDisplayStub.reset();
+				});
+				const ctrl = new MockTestController();
+				const item = ctrl.createTestItem(
+					'',
+					'',
+					Uri.file(path.join(__dirname, '../../../test/testdata/getAllPackagesTest/A'))
+				);
+
+				await testExplorer.resolver.getAllTestsUnderDirectory(item);
+
+				const items = testExplorer.resolver.find(item.uri!);
+				// ensure the directory structure is correct
+				// should create two items (A and A/AA) in this nested case
+				assert.ok(items.length === 1);
+				const rootPackageItem = items[0];
+				assert.ok(rootPackageItem.id.includes('A') === true);
+				assert.ok(rootPackageItem.id.includes('A/AA') === false);
+				assert.ok(rootPackageItem.children.size === 1);
+				const innerPackageItem = childrenToArray(rootPackageItem.children)[0];
+				assert.ok(innerPackageItem.id.includes('AA') === true);
+				assert.ok(innerPackageItem.children.size === 0);
+			});
+
+			test('Resolve subtests of a given directory with flat display using modFolderPath', async () => {
+				setup(() => {
+					getPackageDisplayStub.withArgs('testExplorer.packageDisplayMode').returns('flat');
+					getModFolderPathStub.returns(Promise.resolve(path.join(__dirname, '../../..')));
+				});
+				teardown(() => {
+					getModFolderPathStub.reset();
+					getPackageDisplayStub.reset();
+				});
+				getPackageDisplayStub.withArgs('testExplorer.packageDisplayMode').returns('flat');
+				const ctrl = new MockTestController();
+				const item = ctrl.createTestItem(
+					'',
+					'',
+					Uri.file(path.join(__dirname, '../../../test/testdata/getAllPackagesTest/A'))
+				);
+				const expectedRootPackageUri = Uri.file(
+					path.join(__dirname, '../../../test/testdata/getAllPackagesTest/A/AA')
+				);
+				await testExplorer.resolver.getAllTestsUnderDirectory(item);
+				const rootPackageItem = testExplorer.resolver.find(expectedRootPackageUri)[0];
+				// ensure the directory structure is correct
+				// should only create a single item in this flat case
+				assert.ok(rootPackageItem !== undefined);
+				assert.ok(rootPackageItem.id.includes('A/AA') === true);
+				assert.ok(rootPackageItem.children.size === 0);
+			});
 		});
 	});
 });

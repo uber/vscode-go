@@ -172,6 +172,14 @@ export class GoTestResolver {
 		return it(this.items);
 	}
 
+	// load packages and tests under this directory as test items in the test explorer
+	async getAllTestsUnderDirectory(item: TestItem) {
+		if (!item.uri) return;
+		await walkPackages(this.workspace.fs, item.uri, async (uri) => {
+			await this.getPackage(uri);
+		});
+	}
+
 	// Create or Retrieve a sub test or benchmark. The ID will be of the form:
 	//     file:///path/to/mod/file.go?test#TestXxx%2fA%2fB%2fC
 	getOrCreateSubTest(item: TestItem, label: string, name: string, dynamic?: boolean): TestItem | undefined {
@@ -339,10 +347,18 @@ export class GoTestResolver {
 		const nested = getGoConfig(uri).get('testExplorer.packageDisplayMode') === 'nested';
 		const modDirPath = await getModFolderPath(uri, true);
 		const wsfolder = workspace.getWorkspaceFolder(uri);
-		if (modDirPath) {
-			const modDir = Uri.file(modDirPath); // TODO support non-file schemes
+		if (modDirPath || nested) {
 			// If the package is in a module, add it as a child of the module
-			let parent = await this.getModule(modDir);
+			let parent: TestItem | undefined = undefined;
+			if (modDirPath) {
+				const modDir = Uri.file(modDirPath); // TODO support non-file schemes
+				parent = await this.getModule(modDir);
+			} else if (nested && wsfolder !== undefined) {
+				parent = await this.getWorkspace(wsfolder);
+			} else {
+				return;
+			}
+
 			if (uri.path === parent.uri?.path) {
 				return parent;
 			}
