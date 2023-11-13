@@ -1,0 +1,7 @@
+<testsuites>
+	<testsuite errors="0" failures="1" skipped="0" tests="1" time="0.422" name="src/code/project/example/component_tests/go_default_test">
+		<testcase classname="go_default_test" name="TestExampleCase" time="0.330">
+			<failure message="Failed" type="">=== RUN   TestExampleCase&#xA;2023-02-02T16:36:32.664Z&#x9;INFO&#x9;fxevent/zap.go:51&#x9;provided&#x9;{&#34;constructor&#34;: &#34;reflect.makeFuncStub()&#34;, &#34;type&#34;}&#xA;--- FAIL: TestExampleCase (0.33s)&#xA;</failure>
+		</testcase>
+	</testsuite>
+</testsuites>

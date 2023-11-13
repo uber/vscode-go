@@ -1,9 +1,10 @@
 {
-  "name": "go",
-  "displayName": "Go",
-  "version": "0.39.1",
-  "publisher": "golang",
-  "description": "Rich Go language support for Visual Studio Code",
+  "name": "go-bazel",
+  "displayName": "Go with Bazel",
+  "version": "0.39.1-upstream-0.1.7-uber",
+  "preview": false,
+  "publisher": "Uber",
+  "description": "Rich Go language support for Visual Studio Code. Supports test and debug with Bazel",
   "author": {
     "name": "Go Team at Google"
   },
@@ -24,10 +25,10 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/golang/vscode-go"
+    "url": "https://github.com/uber/vscode-go"
   },
   "bugs": {
-    "url": "https://github.com/golang/vscode-go/issues"
+    "url": "https://github.com/uber/vscode-go/issues"
   },
   "keywords": [
     "multi-root ready",
@@ -38,14 +39,15 @@
     "clean": "rm -rf ./dist/* && rm *.vsix",
     "package": "npx vsce package",
     "vscode:prepublish": "npm run compile",
-    "bundle": "esbuild src/goMain.ts debugAdapter=src/debugAdapter/goDebug.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node",
+    "bundle": "esbuild src/goMain.ts debugAdapter=src/debugAdapter/goDebug.ts --bundle --loader:.proto=file --outdir=dist --external:vscode --format=cjs --platform=node",
     "bundle-dev": "npm run bundle -- --sourcemap",
     "bundle-watch": "npm run bundle -- --sourcemap --watch",
-    "test-compile": "tsc -p ./",
+    "test-compile": "tsc -p ./ && cp -r ./proto ./out/proto",
     "compile": "npm run bundle",
     "watch": "tsc -watch -p ./",
     "test": "npm run test-compile && node ./out/test/runTest.js",
     "lint": "gts lint src test",
+    "lint:single": "gts lint",
     "fix-lint": "gts fix src test",
     "unit-test": "npm run test-compile && node ./node_modules/mocha/bin/_mocha -u tdd --timeout 5000 --colors ./out/test/unit",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
@@ -55,25 +57,34 @@
     "diff": "4.0.2",
     "glob": "7.1.7",
     "json-rpc2": "2.0.0",
+    "lcov-parse": "^1.0.0",
     "moment": "2.29.4",
+    "object-hash": "^3.0.0",
+    "portfinder": "^1.0.32",
+    "protobufjs": "^7.1.2",
     "semver": "7.3.4",
     "tree-kill": "file:third_party/tree-kill",
+    "vsce": "^2.15.0",
     "vscode-debugadapter": "1.45.0",
     "vscode-debugprotocol": "1.45.0",
     "vscode-languageclient": "8.1.0",
     "vscode-languageserver-protocol": "3.17.3",
     "vscode-uri": "3.0.3",
-    "web-request": "1.0.7"
+    "web-request": "1.0.7",
+    "xml2js": "^0.4.23"
   },
   "devDependencies": {
     "@types/adm-zip": "0.4.33",
     "@types/fs-extra": "8.1.1",
     "@types/glob": "7.1.3",
+    "@types/lcov-parse": "^1.0.0",
     "@types/mocha": "7.0.2",
     "@types/node": "13.13.46",
+    "@types/object-hash": "^3.0.0",
     "@types/semver": "7.3.4",
     "@types/sinon": "9.0.11",
     "@types/vscode": "1.67.0",
+    "@types/xml2js": "^0.4.11",
     "@vscode/debugadapter-testsupport": "1.58.0",
     "@vscode/test-electron": "2.2.0",
     "@vscode/vsce": "2.19.0",
@@ -221,6 +232,12 @@
     },
     "commands": [
       {
+        "command": "go.coverageTree.clear",
+        "title": "Clear Coverage",
+        "description": "Clear Coverage from all sources",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "go.gopath",
         "title": "Go: Current GOPATH",
         "description": "See the currently set GOPATH."
@@ -238,42 +255,56 @@
       {
         "command": "go.test.cursor",
         "title": "Go: Test Function At Cursor",
-        "description": "Runs a unit test at the cursor."
+        "description": "Runs a unit test at the cursor.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.cursorOrPrevious",
         "title": "Go: Test Function At Cursor or Test Previous",
-        "description": "Runs a unit test at the cursor if one is found, otherwise re-runs the last executed test."
+        "description": "Runs a unit test at the cursor if one is found, otherwise re-runs the last executed test.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.subtest.cursor",
         "title": "Go: Subtest At Cursor",
-        "description": "Runs a sub test at the cursor."
+        "description": "Runs a sub test at the cursor.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.debug.subtest.cursor",
         "title": "Go: Debug Subtest At Cursor",
-        "description": "Debug a sub test at the cursor."
+        "description": "Debug a sub test at the cursor.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.benchmark.cursor",
         "title": "Go: Benchmark Function At Cursor",
-        "description": "Runs a benchmark at the cursor."
+        "description": "Runs a benchmark at the cursor.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.debug.cursor",
         "title": "Go: Debug Test At Cursor",
-        "description": "Debug test at the cursor."
+        "description": "Debug test at the cursor.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.file",
         "title": "Go: Test File",
-        "description": "Runs all unit tests in the current file."
+        "description": "Runs all unit tests in the current file.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.package",
         "title": "Go: Test Package",
-        "description": "Runs all unit tests in the package of the current file."
+        "description": "Runs all unit tests in the package of the current file.",
+        "enablement": "!config.go.testExplorer.useBazel"
+      },
+      {
+        "command": "go.test.package.bazel",
+        "title": "Test: Run All Tests in Package",
+        "description": "Runs all unit tests in the package of the current file.",
+        "enablement": "config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.refresh",
@@ -309,32 +340,44 @@
       {
         "command": "go.benchmark.package",
         "title": "Go: Benchmark Package",
-        "description": "Runs all benchmarks in the package of the current file."
+        "description": "Runs all benchmarks in the package of the current file.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.benchmark.file",
         "title": "Go: Benchmark File",
-        "description": "Runs all benchmarks in the current file."
+        "description": "Runs all benchmarks in the current file.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.workspace",
         "title": "Go: Test All Packages In Workspace",
-        "description": "Runs all unit tests from all packages in the current workspace."
+        "description": "Runs all unit tests from all packages in the current workspace.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.previous",
         "title": "Go: Test Previous",
-        "description": "Re-runs the last executed test."
+        "description": "Re-runs the last executed test.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.debug.previous",
         "title": "Go: Debug Previous",
-        "description": "Re-runs the last debugged test run through a codelens or \"Go: Debug Test at Cursor\" command."
+        "description": "Re-runs the last debugged test run through a codelens or \"Go: Debug Test at Cursor\" command.",
+        "enablement": "!config.go.testExplorer.useBazel"
       },
       {
         "command": "go.test.coverage",
         "title": "Go: Toggle Test Coverage In Current Package",
-        "description": "Displays test coverage in the current package."
+        "description": "Displays test coverage in the current package.",
+        "enablement": "!config.go.testExplorer.useBazel"
+      },
+      {
+        "command": "go.test.coverage.bazel",
+        "title": "Go: Run Test With Coverage",
+        "description": "Run a single test with coverage enabled.",
+        "icon": "$(debug-coverage)"
       },
       {
         "command": "go.test.generate.package",
@@ -553,6 +596,16 @@
         "description": "Reset the Go Env for the active workspace.",
         "icon": "$(settings-remove)",
         "enablement": "workspaceFolderCount > 0"
+      },
+      {
+        "command": "go.coverageTree.refresh",
+        "title": "Refresh"
+      },
+      {
+        "command": "go.testExplorer.package",
+        "title": "Go: Test Package",
+        "description": "Runs all unit tests in the package of the current file.",
+        "enablement": "!config.go.testExplorer.useBazel"
       }
     ],
     "breakpoints": [
@@ -1465,6 +1518,12 @@
           "scope": "window",
           "description": "Enable the Go test explorer"
         },
+        "go.testExplorer.useBazel": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "description": "Use Bazel for testing / debugging instead of the native go toolchain."
+        },
         "go.testExplorer.packageDisplayMode": {
           "type": "string",
           "enum": [
@@ -1498,6 +1557,18 @@
           "default": true,
           "description": "Open the test output terminal when a test run is started.",
           "scope": "window"
+        },
+        "go.testExplorer.indexEntireWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "When searching for available tests, search the entire workspace instead of just the current package.",
+          "scope": "resource"
+        },
+        "go.helperExtension": {
+          "type": "string",
+          "default": "uber.go-bazel",
+          "description": "An additional extension can be installed that provides customization of certain functions, which are provided via the extension API.",
+          "scope": "resource"
         },
         "go.generateTestsFlags": {
           "type": "array",
@@ -2823,6 +2894,12 @@
           "group": "inline"
         },
         {
+          "command": "go.test.coverage.bazel",
+          "when": "testId in go.tests",
+          "group": "inline",
+          "icon": "$(debug-coverage)"
+        },
+        {
           "command": "go.test.showProfiles",
           "when": "testId in go.profiledTests",
           "group": "profile"
@@ -2833,10 +2910,21 @@
           "group": "profile"
         }
       ],
+      "testing/item/gutter": [
+        {
+          "command": "go.test.coverage.bazel",
+          "group": "Go group 1"
+        }
+      ],
       "view/title": [
         {
           "command": "go.explorer.refresh",
           "when": "view == go.explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "go.coverageTree.clear",
+          "when": "view == go.coverageTree",
           "group": "navigation"
         }
       ],
@@ -2877,9 +2965,25 @@
           "contextualTitle": "Go",
           "icon": "$(graph)",
           "when": "go.hasProfiles"
+        },
+        {
+          "id": "go.coverageTree",
+          "name": "coverage",
+          "icon": "media/go-logo-white.svg",
+          "when": "go.showCoverage"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "go.coverageTree",
+        "contents": "Coverage data will be available here after tests have been run."
+      },
+      {
+        "view": "testing",
+        "contents": "Open a _test.go file to begin loading Go test cases."
+      }
+    ],
     "taskDefinitions": [
       {
         "type": "go",

@@ -27,7 +27,7 @@ interface Highlight {
 	all: vscode.TextEditorDecorationType;
 }
 
-let decorators: {
+export let decorators: {
 	type: 'highlight' | 'gutter';
 	coveredGutter: vscode.TextEditorDecorationType;
 	uncoveredGutter: vscode.TextEditorDecorationType;
@@ -35,7 +35,7 @@ let decorators: {
 	uncoveredHighlight: Highlight;
 };
 
-let decoratorConfig: {
+export let decoratorConfig: {
 	[key: string]: any;
 	type: 'highlight' | 'gutter';
 	coveredHighlightColor: string;
@@ -112,7 +112,7 @@ export function updateCodeCoverageDecorators(coverageDecoratorConfig: any) {
 	vscode.window.visibleTextEditors.forEach(applyCodeCoverage);
 }
 
-function setDecorators() {
+export function setDecorators() {
 	disposeDecorators();
 	if (!decorators) {
 		initForTest();
@@ -184,7 +184,7 @@ function disposeDecorators() {
 	}
 }
 
-interface CoverageData {
+export interface CoverageData {
 	uncoveredOptions: vscode.DecorationOptions[];
 	coveredOptions: vscode.DecorationOptions[];
 }
@@ -192,7 +192,7 @@ interface CoverageData {
 let coverageData: { [key: string]: CoverageData } = {}; // actual file path to the coverage data.
 let isCoverageApplied = false;
 
-function emptyCoverageData(): CoverageData {
+export function emptyCoverageData(): CoverageData {
 	return {
 		uncoveredOptions: [],
 		coveredOptions: []
@@ -202,7 +202,7 @@ function emptyCoverageData(): CoverageData {
 /**
  * Clear the coverage on all files
  */
-function clearCoverage() {
+export function clearCoverage() {
 	coverageData = {};
 	disposeDecorators();
 	isCoverageApplied = false;
@@ -306,7 +306,7 @@ export function applyCodeCoverageToAllEditors(coverProfilePath: string, dir?: st
 }
 
 // add decorations to the range
-function elaborate(r: vscode.Range, count: number, showCounts: boolean): vscode.DecorationOptions[] {
+export function elaborate(r: vscode.Range, count: number, showCounts: boolean): vscode.DecorationOptions[] {
 	// irrelevant for "gutter"
 	if (!decorators || decorators.type === 'gutter') {
 		return [{ range: r }];
@@ -329,7 +329,7 @@ function elaborate(r: vscode.Range, count: number, showCounts: boolean): vscode.
 	return ans;
 }
 
-function createCoverageData(pathsToDirs: Map<string, string>, coveragePath: Map<string, CoverageData>) {
+export function createCoverageData(pathsToDirs: Map<string, string>, coveragePath: Map<string, CoverageData>) {
 	coveragePath.forEach((cd, ip) => {
 		if (path.isAbsolute(ip)) {
 			setCoverageDataByFilePath(ip, cd);
