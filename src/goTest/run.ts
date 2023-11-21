@@ -31,9 +31,9 @@ import path = require('path');
 
 let debugSessionID = 0;
 
-type CollectedTest = { item: TestItem; explicitlyIncluded?: boolean };
+export type CollectedTest = { item: TestItem; explicitlyIncluded?: boolean };
 
-interface RunConfig {
+export interface RunConfig {
 	goConfig: WorkspaceConfiguration;
 	flags: string[];
 	isMod: boolean;
@@ -50,7 +50,7 @@ interface RunConfig {
 
 // TestRunOutput is a fake OutputChannel that forwards all test output to the test API
 // console.
-class TestRunOutput implements OutputChannel {
+export class TestRunOutput implements OutputChannel {
 	readonly name: string;
 	readonly lines: string[] = [];
 
@@ -77,11 +77,11 @@ class TestRunOutput implements OutputChannel {
 
 export class GoTestRunner {
 	constructor(
-		private readonly goCtx: GoExtensionContext,
-		private readonly workspace: Workspace,
-		private readonly ctrl: TestController,
-		private readonly resolver: GoTestResolver,
-		private readonly profiler: GoTestProfiler
+		protected readonly goCtx: GoExtensionContext,
+		protected readonly workspace: Workspace,
+		protected readonly ctrl: TestController,
+		protected readonly resolver: GoTestResolver,
+		protected readonly profiler: GoTestProfiler
 	) {
 		ctrl.createRunProfile(
 			'Go',
@@ -135,7 +135,7 @@ export class GoTestRunner {
 		};
 	}
 
-	async debug(request: TestRunRequest, token?: CancellationToken) {
+	async debug(request: TestRunRequest, token?: CancellationToken, debugTestFunc: Function = debugTestAtCursor) {
 		if (!request.include) {
 			await vscode.window.showErrorMessage('The Go test explorer does not support debugging multiple tests');
 			return;
@@ -190,7 +190,7 @@ export class GoTestRunner {
 
 		const run = this.ctrl.createTestRun(request, `Debug ${name}`);
 		if (!testFunctions) return;
-		const started = await debugTestAtCursor(doc, name, testFunctions, goConfig, id);
+		const started = await debugTestFunc(doc, name, testFunctions, goConfig, id);
 		if (!started) {
 			subs.forEach((s) => s.dispose());
 			run.end();
@@ -445,7 +445,7 @@ export class GoTestRunner {
 		return;
 	}
 
-	private async runGoTest(config: RunConfig): Promise<boolean> {
+	protected async runGoTest(config: RunConfig): Promise<boolean> {
 		const { run, options, pkg, functions, record, concat, ...rest } = config;
 		if (Object.keys(functions).length === 0) return true;
 

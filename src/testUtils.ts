@@ -30,7 +30,7 @@ import { GoExtensionContext } from './context';
 
 const testOutputChannel = vscode.window.createOutputChannel('Go Tests');
 const STATUS_BAR_ITEM_NAME = 'Go Test Cancel';
-const statusBarItem = vscode.window.createStatusBarItem(STATUS_BAR_ITEM_NAME, vscode.StatusBarAlignment.Left);
+export const statusBarItem = vscode.window.createStatusBarItem(STATUS_BAR_ITEM_NAME, vscode.StatusBarAlignment.Left);
 statusBarItem.name = STATUS_BAR_ITEM_NAME;
 statusBarItem.command = 'go.test.cancel';
 statusBarItem.text = '$(x) Cancel Running Tests';
@@ -38,7 +38,7 @@ statusBarItem.text = '$(x) Cancel Running Tests';
 /**
  *  testProcesses holds a list of currently running test processes.
  */
-const runningTestProcesses: cp.ChildProcess[] = [];
+export const runningTestProcesses: cp.ChildProcess[] = [];
 
 // https://github.com/golang/go/blob/117b1c84d3678a586c168a5f7f2f0a750c27f0c2/src/cmd/go/internal/load/test.go#L487
 // uses !unicode.isLower to find test/example/benchmark functions.
@@ -382,7 +382,7 @@ export async function goTest(testconfig: TestConfig): Promise<boolean> {
 	return testResult;
 }
 
-async function getTestTargetPackages(testconfig: TestConfig, outputChannel: vscode.OutputChannel) {
+export async function getTestTargetPackages(testconfig: TestConfig, outputChannel: vscode.OutputChannel) {
 	const targets = testconfig.includeSubDirectories ? ['./...'] : [];
 	let currentGoWorkspace = '';
 	let getCurrentPackagePromise: Promise<string> | undefined;

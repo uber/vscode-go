@@ -66,6 +66,7 @@ import { GoExplorerProvider } from './goExplorer';
 import { GoExtensionContext } from './context';
 import * as commands from './commands';
 import { toggleVulncheckCommandFactory, VulncheckOutputLinkProvider } from './goVulncheck';
+import { BazelGoTestExplorer, warnIfDuplicateGoExtension } from './bazel/bazelExplore';
 import { GoTaskProvider } from './goTaskProvider';
 
 const goCtx: GoExtensionContext = {};
@@ -75,6 +76,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 		// Make sure this does not run when running in test.
 		return;
 	}
+
+	warnIfDuplicateGoExtension();
 
 	setGlobalState(ctx.globalState);
 	setWorkspaceState(ctx.workspaceState);
@@ -121,7 +124,6 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 
 	registerCommand('go.environment.status', expandGoStatusBar);
 
-	GoRunTestCodeLensProvider.activate(ctx, goCtx);
 	GoDebugConfigurationProvider.activate(ctx, goCtx);
 	GoDebugFactory.activate(ctx);
 
@@ -166,7 +168,11 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('go.browse.packages', browsePackages);
 
 	if (isVscodeTestingAPIAvailable && cfg.get<boolean>('testExplorer.enable')) {
-		GoTestExplorer.setup(ctx, goCtx);
+		if (cfg.get<boolean>('testExplorer.useBazel')) BazelGoTestExplorer.setup(ctx, goCtx);
+		else {
+			GoTestExplorer.setup(ctx, goCtx);
+			GoRunTestCodeLensProvider.activate(ctx, goCtx);
+		}
 	}
 
 	GoExplorerProvider.setup(ctx);
@@ -215,6 +221,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	// Vulncheck output link provider.
 	VulncheckOutputLinkProvider.activate(ctx);
 	registerCommand('go.vulncheck.toggle', toggleVulncheckCommandFactory);
+	vscode.commands.executeCommand('go.initExtensionAPI', ctx, goCtx);
 
 	return extensionAPI;
 }
@@ -301,6 +308,15 @@ function addOnDidChangeConfigListeners(ctx: vscode.ExtensionContext) {
 			if (e.affectsConfiguration('go.testExplorer.enable')) {
 				const msg =
 					'Go test explorer has been enabled or disabled. For this change to take effect, the window must be reloaded.';
+				vscode.window.showInformationMessage(msg, 'Reload').then((selected) => {
+					if (selected === 'Reload') {
+						vscode.commands.executeCommand('workbench.action.reloadWindow');
+					}
+				});
+			}
+			if (e.affectsConfiguration('go.testExplorer.useBazel')) {
+				const msg =
+					'Bazel has been enabled or disabled. For this change to take effect, the window must be reloaded.';
 				vscode.window.showInformationMessage(msg, 'Reload').then((selected) => {
 					if (selected === 'Reload') {
 						vscode.commands.executeCommand('workbench.action.reloadWindow');
