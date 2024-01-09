@@ -98,7 +98,22 @@ export class BazelGoTestExplorer extends GoTestExplorer {
 				}
 			})
 		);
+		vscode.commands.registerCommand('go.test.getAllChildren', async (item) => {
+			if (!item) {
+				await vscode.window.showErrorMessage('No test selected');
+				return;
+			}
 
+			try {
+				await this.resolver.getAllTestsUnderDirectory(item);
+				this.resolver.updateGoTestContext();
+			} catch (error) {
+				const m = 'Failed to resolve tests';
+				outputChannel.appendLine(`${m}: ${error}`);
+				outputChannel.show();
+				await vscode.window.showErrorMessage(m);
+			}
+		});
 		this.extensionCtx.subscriptions.push(
 			workspace.onDidOpenTextDocument(async (x) => {
 				try {

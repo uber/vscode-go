@@ -17,7 +17,30 @@ export function getSymbols_Regex(doc: TextDocument, token: unknown): Thenable<Do
 		syms.push(new DocumentSymbol(type + name, details, SymbolKind.Function, range, range));
 		return m;
 	});
-	return Promise.resolve(syms);
+	doc.getText().replace(
+		// Match suite methods and include them in the symbols.
+		/^func \(s \*([A-Za-z_]\w*)\) (Test[A-Z]\w+)(\(.*\))/gm,
+		(m, suiteName, testName, details) => {
+			const fullName = `(*${suiteName}).${testName}`;
+			syms.push(new DocumentSymbol(fullName, details, SymbolKind.Method, range, range));
+			return m;
+		}
+	);
+
+	// Updates below below to support testify test case scenarios:
+	// 1) Match suite methods in the input text and include as symbols.
+	// 2) Match testify suite import and include as symbol.
+	// 3) Instead of returning flat symbols, return them as children of the package.
+	doc.getText().replace(/github\.com\/stretchr\/testify\/suite/gm, (m, type, name, details) => {
+		syms.push(
+			new DocumentSymbol('"github.com/stretchr/testify/suite"', details, SymbolKind.Namespace, range, range)
+		);
+		return m;
+	});
+
+	const packageSym = new DocumentSymbol('a', 'package', SymbolKind.Package, range, range);
+	packageSym.children = syms;
+	return Promise.resolve([packageSym]);
 }
 
 export function populateModulePathCache(workspace: MockTestWorkspace) {

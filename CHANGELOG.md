@@ -1,3 +1,12 @@
+## v0.1.10 - 21 Dec, 2023
+- Updates to fix nested mode when using Bazel, and index all tests under a given path
+
+## v0.1.9 - 6 Oct, 2023
+- Bug fix: Ensure that test explorer cleans up old test case names in Testify suites
+
+## v0.1.8 - 16 Aug, 2023
+- Internal use
+
 ## v0.1.7 - 10 May, 2023
 - Show duplciate extension warning when the user has the regular "Go" extension installed.
 - Bug fixes

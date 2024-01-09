@@ -1,7 +1,7 @@
 {
   "name": "go-bazel",
   "displayName": "Go with Bazel",
-  "version": "0.39.1-upstream-0.1.7-uber",
+  "version": "0.39.1-upstream-0.1.10-uber",
   "preview": false,
   "publisher": "Uber",
   "description": "Rich Go language support for Visual Studio Code. Supports test and debug with Bazel",
@@ -377,6 +377,12 @@
         "command": "go.test.coverage.bazel",
         "title": "Go: Run Test With Coverage",
         "description": "Run a single test with coverage enabled.",
+        "icon": "$(debug-coverage)"
+      },
+      {
+        "command": "go.test.getAllChildren",
+        "title": "Resolve All Tests Under this Package",
+        "description": "Resolve all test cases below this path.",
         "icon": "$(debug-coverage)"
       },
       {
@@ -2897,6 +2903,12 @@
           "command": "go.test.coverage.bazel",
           "when": "testId in go.tests",
           "group": "inline",
+          "icon": "$(debug-coverage)"
+        },
+        {
+          "command": "go.test.getAllChildren",
+          "when": "testId in go.tests",
+          "group": "resolve",
           "icon": "$(debug-coverage)"
         },
         {

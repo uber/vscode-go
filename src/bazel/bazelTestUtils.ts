@@ -98,7 +98,8 @@ export async function goTestWithBazel(
 
 	// compute test target package and generate full args.
 	const { targets, currentGoWorkspace } = await getTestTargetPackages(testconfig, outputChannel);
-	const bazelTargets = await getBazelTargetsFromPackages(testconfig, targets, currentGoWorkspace, debugConfig);
+	const currentWorkingDirectory = currentGoWorkspace ? currentGoWorkspace : testconfig.dir; // Run from test location if worskpace not found
+	const bazelTargets = await getBazelTargetsFromPackages(testconfig, targets, currentWorkingDirectory, debugConfig);
 	const buildEventsFile = path.join(os.tmpdir(), `build_events_${hash(outputChannel.name)}`); // Output channel name provides unique timestamp for temp file.
 	const bazelArgs = getBazelArgs(testconfig, bazelTargets, buildEventsFile, debugConfig);
 
@@ -108,7 +109,7 @@ export async function goTestWithBazel(
 	try {
 		testResult = await new Promise<RunResult>((resolve) => {
 			// TODO: Add support of test environment variables. IDE-73
-			const testProcess = cp.exec(['bazel', ...bazelArgs].join(' '), { cwd: currentGoWorkspace });
+			const testProcess = cp.exec(['bazel', ...bazelArgs].join(' '), { cwd: currentWorkingDirectory });
 			const outBuf = new LineBuffer();
 			const errBuf = new LineBuffer();
 
@@ -162,7 +163,7 @@ export async function goTestWithBazel(
 							'/bazel-out/_coverage/_coverage_report.dat'
 						),
 						bazelWorkspaceRoot: buildEventOutputs.workspaceDirectory,
-						currentGoWorkspace: currentGoWorkspace,
+						currentGoWorkspace: currentWorkingDirectory,
 						targetPackages: targets,
 						generatedFilePrefix: buildEventOutputs.genDir || ''
 					});

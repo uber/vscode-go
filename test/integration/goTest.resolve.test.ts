@@ -243,3 +243,229 @@ suite('Go Test Resolver', () => {
 		});
 	}
 });
+
+suite('Testify Suite Refresh', () => {
+	interface TC extends TestCase {
+		item?: ([string, string, GoTestKind] | [string, string, GoTestKind, string])[];
+		expect: string[];
+		updatedFiles?: Record<string, string>;
+		expectAdded?: string[];
+		expectRemoved?: string[];
+	}
+
+	const cases: Record<string, Record<string, TC>> = {
+		File: {
+			'Replaced Test Case': {
+				workspace: ['/src/proj'],
+				files: {
+					'/src/proj/main_test.go': `
+						package main
+
+						import "github.com/stretchr/testify/suite"
+
+						type SampleTestSuite struct {
+							suite.Suite
+						}
+
+						func TestSampleTestSuite(t *testing.T) {
+							suite.Run(t, new(SampleTestSuite))
+						}
+
+						func (s *SampleTestSuite) TestSample1() {}
+						func (s *SampleTestSuite) TestSample2() {}
+						func (s *SampleTestSuite) TestSample3() {}
+					`,
+					'/src/proj/another_test.go': `
+						package main
+
+						import "github.com/stretchr/testify/suite"
+
+						func (s *SampleTestSuite) TestSample4() {}
+						func (s *SampleTestSuite) TestSample5() {}
+					`
+				},
+				item: [
+					['main_test.go', '/src/proj/main_test.go', 'file'],
+					['another_test.go', '/src/proj/another_test.go', 'file']
+				],
+				expect: [
+					'file:///src/proj/main_test.go?file',
+					'file:///src/proj/another_test.go?file',
+					'file:///src/proj?package',
+					'file:///src/proj/main_test.go?test#TestSampleTestSuite',
+					'file:///src/proj/main_test.go?test#%28%2ASampleTestSuite%29.TestSample1',
+					'file:///src/proj/main_test.go?test#%28%2ASampleTestSuite%29.TestSample2',
+					'file:///src/proj/main_test.go?test#%28%2ASampleTestSuite%29.TestSample3',
+					'file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample4',
+					'file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample5'
+				],
+				updatedFiles: {
+					'/src/proj/main_test.go': `
+					package main
+
+					import "github.com/stretchr/testify/suite"
+
+					type SampleTestSuite struct {
+						suite.Suite
+					}
+
+					func TestSampleTestSuite(t *testing.T) {
+						suite.Run(t, new(SampleTestSuite))
+					}
+
+					func (s *SampleTestSuite) TestSample1() {}
+					func (s *SampleTestSuite) TestSample2() {}
+					func (s *SampleTestSuite) TestSample3() {}
+				`,
+					'/src/proj/another_test.go': `
+						package main
+
+						import "github.com/stretchr/testify/suite"
+
+						func (s *SampleTestSuite) TestSample6() {}
+						func (s *SampleTestSuite) TestSample5() {}
+					`
+				},
+				expectAdded: ['file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample6'],
+				expectRemoved: ['file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample4']
+			},
+			'Removed Test Case': {
+				workspace: ['/src/proj'],
+				files: {
+					'/src/proj/main_test.go': `
+						package main
+
+						import "github.com/stretchr/testify/suite"
+
+						type SampleTestSuite struct {
+							suite.Suite
+						}
+
+						func TestSampleTestSuite(t *testing.T) {
+							suite.Run(t, new(SampleTestSuite))
+						}
+
+						func (s *SampleTestSuite) TestSample1() {}
+						func (s *SampleTestSuite) TestSample2() {}
+						func (s *SampleTestSuite) TestSample3() {}
+					`,
+					'/src/proj/another_test.go': `
+						package main
+
+						import "github.com/stretchr/testify/suite"
+
+						func (s *SampleTestSuite) TestSample4() {}
+						func (s *SampleTestSuite) TestSample5() {}
+					`
+				},
+				item: [
+					['main_test.go', '/src/proj/main_test.go', 'file'],
+					['another_test.go', '/src/proj/another_test.go', 'file']
+				],
+				expect: [
+					'file:///src/proj/main_test.go?file',
+					'file:///src/proj/another_test.go?file',
+					'file:///src/proj?package',
+					'file:///src/proj/main_test.go?test#TestSampleTestSuite',
+					'file:///src/proj/main_test.go?test#%28%2ASampleTestSuite%29.TestSample1',
+					'file:///src/proj/main_test.go?test#%28%2ASampleTestSuite%29.TestSample2',
+					'file:///src/proj/main_test.go?test#%28%2ASampleTestSuite%29.TestSample3',
+					'file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample4',
+					'file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample5'
+				],
+				updatedFiles: {
+					'/src/proj/main_test.go': `
+					package main
+
+					import "github.com/stretchr/testify/suite"
+
+					type SampleTestSuite struct {
+						suite.Suite
+					}
+
+					func TestSampleTestSuite(t *testing.T) {
+						suite.Run(t, new(SampleTestSuite))
+					}
+
+					func (s *SampleTestSuite) TestSample1() {}
+					func (s *SampleTestSuite) TestSample2() {}
+					func (s *SampleTestSuite) TestSample3() {}
+				`,
+					'/src/proj/another_test.go': `
+					package main
+
+					import "github.com/stretchr/testify/suite"
+
+					func (s *SampleTestSuite) TestSample4() {}
+				`
+				},
+				expectRemoved: ['file:///src/proj/another_test.go?test#%28%2ASampleTestSuite%29.TestSample5']
+			}
+		}
+	};
+
+	for (const n in cases) {
+		suite(n, () => {
+			for (const m in cases[n]) {
+				test(m, async () => {
+					const {
+						workspace,
+						files,
+						expect,
+						item: itemData = [],
+						updatedFiles,
+						expectAdded,
+						expectRemoved
+					} = cases[n][m];
+					const { ctrl, resolver } = setup(workspace, files);
+
+					let item: TestItem | undefined;
+					const rootTestItems: TestItem[] = [];
+					for (const [label, uri, kind, name] of itemData) {
+						const u = Uri.parse(uri);
+						const child = ctrl.createTestItem(GoTest.id(u, kind, name), label, u);
+						(item?.children || resolver.items).add(child);
+						rootTestItems.push(child);
+					}
+
+					for (item of rootTestItems) {
+						await resolver.resolve(item);
+					}
+
+					const initialResultEntries: Set<string> = new Set();
+					resolver.items.forEach((x) => collectItemId(x, initialResultEntries));
+
+					for (const expectedItem of expect) {
+						assert.ok(initialResultEntries.has(expectedItem));
+					}
+
+					if (updatedFiles) {
+						// force update the document text in the mock.
+						const updatedWorkspace = MockTestWorkspace.from(workspace, updatedFiles);
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(resolver as any).workspace = updatedWorkspace;
+
+						for (item of rootTestItems) {
+							await resolver.resolve(item);
+						}
+						const updatedResultEntries: Set<string> = new Set();
+						resolver.items.forEach((x) => collectItemId(x, updatedResultEntries));
+						for (const expectedItem of expectAdded || []) {
+							assert.ok(updatedResultEntries.has(expectedItem));
+						}
+						for (const expectedItem of expectRemoved || []) {
+							assert.ok(!updatedResultEntries.has(expectedItem));
+						}
+					}
+				});
+			}
+		});
+	}
+});
+
+const collectItemId = (item: TestItem, actual: Set<string>) => {
+	actual.add(item.id);
+	item.children.forEach((x) => {
+		collectItemId(x, actual);
+	});
+};
